@@ -15,15 +15,14 @@ import firebase from '../config';
 import * as ImagePicker from "expo-image-picker";
 
 const database = firebase.database();
-const ref_all_accounts = database.ref("Acounts");
+const ref_all_accounts = database.ref("Acounts"); // <--- correct path
 
 export default function CreateUser({ navigation }) {
-
   const auth = firebase.auth();
 
   const [fullName, setFullName] = useState("");
-  const [pseudo, setPseudo] = useState(""); // Added
-  const [numero, setNumero] = useState(""); // Added
+  const [pseudo, setPseudo] = useState("");
+  const [numero, setNumero] = useState("");
   const [email, setEmail] = useState("");
   const [pwd, setPwd] = useState("");
   const [confPwd, setConfPwd] = useState("");
@@ -57,13 +56,17 @@ export default function CreateUser({ navigation }) {
       const uid = auth.currentUser.uid;
 
       // Save ALL fields including Pseudo and Numero
+      // set 'online' false by default and isTyping false default
       await ref_all_accounts.child(uid).set({
         Id: uid,
         FullName: fullName,
         Pseudo: pseudo,
         Numero: numero,
         Email: email.trim(),
-        ProfileImage: profilePic ? profilePic : null
+        ProfileImage: profilePic ? profilePic : null,
+        online: false,
+        lastSeen: Date.now(),
+        isTyping: false,
       });
 
       Alert.alert("Success", "Account created!");
@@ -75,74 +78,22 @@ export default function CreateUser({ navigation }) {
   };
 
   return (
-    <ImageBackground
-      source={require("../assets/background.jpg")}
-      style={styles.container}
-    >
+    <ImageBackground source={require("../assets/background.jpg")} style={styles.container}>
       <View style={styles.card}>
-
-        {/* Profile Photo */}
         <TouchableOpacity onPress={pickImage}>
-          <Image
-            source={
-              profilePic
-                ? { uri: profilePic }
-                : require("../assets/profil.png")
-            }
-            style={styles.profilePic}
-          />
+          <Image source={ profilePic ? { uri: profilePic } : require("../assets/profil.png") } style={styles.profilePic} />
         </TouchableOpacity>
-        
+
         <Text style={styles.changePhotoText}>Tap image to select photo</Text>
 
         <Text style={styles.title}>Create Account</Text>
 
-        <TextInput
-          style={styles.input}
-          placeholder="Full Name"
-          value={fullName}
-          onChangeText={setFullName}
-        />
-
-        <TextInput
-          style={styles.input}
-          placeholder="Pseudo (Username)"
-          value={pseudo}
-          onChangeText={setPseudo}
-        />
-
-        <TextInput
-          style={styles.input}
-          placeholder="Phone Number"
-          value={numero}
-          onChangeText={setNumero}
-          keyboardType="phone-pad"
-        />
-
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-        />
-
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          secureTextEntry
-          value={pwd}
-          onChangeText={setPwd}
-        />
-
-        <TextInput
-          style={styles.input}
-          placeholder="Confirm Password"
-          secureTextEntry
-          value={confPwd}
-          onChangeText={setConfPwd}
-        />
+        <TextInput style={styles.input} placeholder="Full Name" value={fullName} onChangeText={setFullName} />
+        <TextInput style={styles.input} placeholder="Pseudo (Username)" value={pseudo} onChangeText={setPseudo} />
+        <TextInput style={styles.input} placeholder="Phone Number" value={numero} onChangeText={setNumero} keyboardType="phone-pad" />
+        <TextInput style={styles.input} placeholder="Email" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
+        <TextInput style={styles.input} placeholder="Password" secureTextEntry value={pwd} onChangeText={setPwd} />
+        <TextInput style={styles.input} placeholder="Confirm Password" secureTextEntry value={confPwd} onChangeText={setConfPwd} />
 
         <View style={styles.row}>
           <Button title="Register" color="#3b4db8" onPress={handleRegister} />
@@ -158,7 +109,7 @@ export default function CreateUser({ navigation }) {
   );
 }
 
-// STYLES
+// (styles: same as your original CreateUser.js)
 const styles = StyleSheet.create({
   container: { flex: 1, alignItems: "center", justifyContent: "center" },
 
@@ -178,8 +129,8 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
 
-  changePhotoText: { 
-    color: "#666", 
+  changePhotoText: {
+    color: "#666",
     marginBottom: 15,
     fontSize: 12
   },

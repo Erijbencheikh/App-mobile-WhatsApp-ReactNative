@@ -14,10 +14,9 @@ import { supabase } from "../../config";
 import React, { useState, useEffect } from "react";
 import firebase from "../../config";
 import * as ImagePicker from "expo-image-picker";
-import { MaterialCommunityIcons } from "@expo/vector-icons"; 
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 export default function Account({ route, navigation }) {
-
   const { currentid } = route.params;
 
   const database = firebase.database();
@@ -29,19 +28,15 @@ export default function Account({ route, navigation }) {
   const [email, setEmail] = useState("");
   const [numero, setNumero] = useState("");
   const [userImage, setUserImage] = useState(null);
-
   const [modalVisible, setModalVisible] = useState(false);
 
-  
-
-  // LOAD USER INFO FROM DATABASE
-
+  // Load user info once
   useEffect(() => {
     refAccount.once("value").then((snap) => {
       if (snap.exists()) {
         const data = snap.val();
         setNom(data.FullName || "");
-        setPseudo(data.Pseudo || ""); 
+        setPseudo(data.Pseudo || "");
         setEmail(data.Email || "");
         setNumero(data.Numero || "");
         setUserImage(data.ProfileImage || null);
@@ -49,30 +44,25 @@ export default function Account({ route, navigation }) {
     });
   }, []);
 
-
-   
+  // Supabase image upload helper (unchanged)
   const uploadimageToSupabase = async (localURL) => {
-    //convert uri to text
     const response = await fetch(localURL);
     const blob = await response.blob();
     const arrayBuffer = await new Response(blob).arrayBuffer();
-    // save arraybuffer to storage 
-    supabase.storage
+
+    await supabase.storage
       .from('lesimagesprofiles')
-      .upload(currentid+".jpg", arrayBuffer, {
-        upset:true
+      .upload(currentid + ".jpg", arrayBuffer, {
+        upset: true
       });
-      // get public url
-      const {data} = supabase.storage
+
+    const { data } = supabase.storage
       .from('lesimagesprofiles')
-      .getPublicUrl(currentid+".jpg");
-      return data.publicUrl;
+      .getPublicUrl(currentid + ".jpg");
+    return data.publicUrl;
   };
-  
-  
 
-  // PICK IMAGE
-
+  // pick and remove image (unchanged)
   async function pickImage() {
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -85,16 +75,12 @@ export default function Account({ route, navigation }) {
     setModalVisible(false);
   }
 
-  // REMOVE IMAGE
-
   function removeImage() {
     setUserImage(null);
     setModalVisible(false);
   }
 
-  // SAVE UPDATED DATA
-  
-
+  // Save updated data — also keep isTyping default to false (safety)
   function saveData() {
     refAccount
       .update({
@@ -103,73 +89,38 @@ export default function Account({ route, navigation }) {
         Email: email,
         Numero: numero,
         ProfileImage: userImage ? userImage : null,
+        isTyping: false,
       })
       .then(() => Alert.alert("Updated", "Your information has been updated!"));
   }
 
-  // LOGOUT
-  
+  // LOGOUT: set online false and update lastSeen timestamp, then sign out
   function logout() {
-    auth.signOut().then(() => {
-      navigation.replace("Auth");
+    refAccount.update({ online: false, lastSeen: Date.now() }).finally(() => {
+      auth.signOut().then(() => {
+        navigation.replace("Auth");
+      });
     });
   }
 
   return (
-    <ImageBackground
-      source={require("../../assets/background.jpg")}
-      style={styles.container}
-    >
+    <ImageBackground source={require("../../assets/background.jpg")} style={styles.container}>
       <StatusBar style="light" />
 
-      {/* Welcome Message */}
       <Text style={styles.welcomeText}>Welcome, {nom}</Text>
 
-      {/* Profile Image with Edit Icon */}
       <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.profileContainer}>
-        <Image
-          source={
-            userImage
-              ? { uri: userImage }
-              : require("../../assets/profil.png")
-          }
-          style={styles.profilePic}
-        />
-        {/* Edit Icon Overlay */}
+        <Image source={ userImage ? { uri: userImage } : require("../../assets/profil.png") } style={styles.profilePic} />
         <View style={styles.editIconContainer}>
           <MaterialCommunityIcons name="pencil" size={18} color="white" />
         </View>
       </TouchableOpacity>
 
-      {/* Card */}
       <View style={styles.card}>
-        <TextInput
-          style={styles.input}
-          value={nom}
-          onChangeText={setNom}
-          placeholder="Name"
-        />
-
-        <TextInput
-          style={styles.input}
-          value={pseudo}
-          onChangeText={setPseudo}
-          placeholder="Pseudo"
-        />
-
-        <TextInput
-          style={styles.input}
-          value={email}
-          onChangeText={setEmail}
-          placeholder="Email"
-        />
-
-        <TextInput
-          style={styles.input}
-          value={numero}
-          onChangeText={setNumero}
-          placeholder="Number"
-        />
+        <TextInput style={styles.input} value={nom} onChangeText={setNom} placeholder="Name" />
+        <TextInput style={styles.input} value={pseudo} onChangeText={setPseudo} placeholder="Pseudo" />
+        <TextInput style={styles.input} value={email} onChangeText={setEmail} placeholder="Email" />
+        <TextInput style={styles.input} value={numero} onChangeText={setNumero} placeholder="Number" />
 
         <TouchableOpacity style={styles.btn} onPress={saveData}>
           <Text style={styles.btnText}>Save Changes</Text>
@@ -180,7 +131,7 @@ export default function Account({ route, navigation }) {
         </TouchableOpacity>
       </View>
 
-      {/* MODAL */}
+      {/* Modal */}
       <Modal visible={modalVisible} transparent animationType="fade">
         <View style={styles.modalContainer}>
           <View style={styles.modalCard}>
@@ -191,13 +142,8 @@ export default function Account({ route, navigation }) {
             </TouchableOpacity>
 
             {userImage && (
-              <TouchableOpacity
-                style={[styles.modalBtn, styles.removeBtn]}
-                onPress={removeImage}
-              >
-                <Text style={[styles.modalBtnText, { color: "white" }]}>
-                  Remove photo
-                </Text>
+              <TouchableOpacity style={[styles.modalBtn, styles.removeBtn]} onPress={removeImage}>
+                <Text style={[styles.modalBtnText, { color: "white" }]}>Remove photo</Text>
               </TouchableOpacity>
             )}
 
@@ -211,10 +157,9 @@ export default function Account({ route, navigation }) {
   );
 }
 
+// styles (unchanged)
 const styles = StyleSheet.create({
   container: { flex: 1, alignItems: "center", justifyContent: "center" },
-
-  // New Welcome Text Style
   welcomeText: {
     fontSize: 26,
     fontWeight: "bold",
@@ -225,111 +170,22 @@ const styles = StyleSheet.create({
     textShadowOffset: {width: -1, height: 1},
     textShadowRadius: 10
   },
-
-  // Wrapper to hold image + icon
-  profileContainer: {
-    marginBottom: 20,
-    position: "relative",
-  },
-
-  profilePic: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    borderWidth: 2,
-    borderColor: "white",
-  },
-
-  // The small circle with the pencil
+  profileContainer: { marginBottom: 20, position: "relative" },
+  profilePic: { width: 120, height: 120, borderRadius: 60, borderWidth: 2, borderColor: "white" },
   editIconContainer: {
-    position: "absolute",
-    bottom: 0,
-    right: 0,
-    backgroundColor: "#3b4db8",
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 2,
-    borderColor: "white",
+    position: "absolute", bottom: 0, right: 0, backgroundColor: "#3b4db8",
+    width: 36, height: 36, borderRadius: 18, justifyContent: "center", alignItems: "center", borderWidth: 2, borderColor: "white",
   },
-
-  card: {
-    width: "90%",
-    padding: 25,
-    backgroundColor: "#ffffffdd",
-    borderRadius: 20,
-    alignItems: "center",
-  },
-
-  input: {
-    width: "85%",
-    backgroundColor: "#ececec",
-    padding: 12,
-    borderRadius: 10,
-    marginVertical: 7,
-  },
-
-  btn: {
-    marginTop: 20,
-    width: "85%",
-    padding: 12,
-    backgroundColor: "#3b4db8",
-    borderRadius: 12,
-    alignItems: "center",
-  },
-
-  btnText: {
-    color: "white",
-    fontWeight: "700",
-    fontSize: 16,
-  },
-
-  logout: {
-    marginTop: 15,
-    color: "#d9534f",
-    fontWeight: "600",
-    textDecorationLine: "underline",
-  },
-
-  // Modal Styles
-  modalContainer: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.6)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  modalCard: {
-    width: "75%",
-    padding: 25,
-    backgroundColor: "white",
-    borderRadius: 18,
-    alignItems: "center",
-  },
-
+  card: { width: "90%", padding: 25, backgroundColor: "#ffffffdd", borderRadius: 20, alignItems: "center" },
+  input: { width: "85%", backgroundColor: "#ececec", padding: 12, borderRadius: 10, marginVertical: 7 },
+  btn: { marginTop: 20, width: "85%", padding: 12, backgroundColor: "#3b4db8", borderRadius: 12, alignItems: "center" },
+  btnText: { color: "white", fontWeight: "700", fontSize: 16 },
+  logout: { marginTop: 15, color: "#d9534f", fontWeight: "600", textDecorationLine: "underline" },
+  modalContainer: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", alignItems: "center" },
+  modalCard: { width: "75%", padding: 25, backgroundColor: "white", borderRadius: 18, alignItems: "center" },
   modalTitle: { fontSize: 20, marginBottom: 20, fontWeight: "700" },
-
-  modalBtn: {
-    width: "100%",
-    padding: 12,
-    backgroundColor: "#e3e3e3",
-    borderRadius: 10,
-    alignItems: "center",
-    marginVertical: 5,
-  },
-
-  removeBtn: {
-    backgroundColor: "#d9534f",
-  },
-
+  modalBtn: { width: "100%", padding: 12, backgroundColor: "#e3e3e3", borderRadius: 10, alignItems: "center", marginVertical: 5 },
+  removeBtn: { backgroundColor: "#d9534f" },
   modalBtnText: { fontWeight: "600", fontSize: 16 },
-
-  cancelBtn: {
-    marginTop: 12,
-    color: "#007bff",
-    fontWeight: "700",
-    fontSize: 16,
-  },
+  cancelBtn: { marginTop: 12, color: "#007bff", fontWeight: "700", fontSize: 16 },
 });

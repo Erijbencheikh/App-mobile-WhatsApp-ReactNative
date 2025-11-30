@@ -32,3 +32,4 @@ const supabaseUrl = 'https://zrjqwspxxvkcdihurwjr.supabase.co'
 const supabaseKey = "sb_publishable__RcEyC5B8Kl74Yd3LszKEA_xLLZ1CqM"
 const supabase = createClient(supabaseUrl, supabaseKey) 
 export { supabase };
+

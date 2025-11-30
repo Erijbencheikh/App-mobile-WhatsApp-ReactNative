@@ -15,6 +15,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function Auth({ navigation }) {
   const auth = firebase.auth();
+  const database = firebase.database();
 
   // Login States
   const [email, setEmail] = useState("");
@@ -26,7 +27,6 @@ export default function Auth({ navigation }) {
   const [resetEmail, setResetEmail] = useState("");
 
   // LOAD SAVED LOGIN INFO
-  
   useEffect(() => {
     const loadSavedData = async () => {
       const savedEmail = await AsyncStorage.getItem("EMAIL");
@@ -42,8 +42,6 @@ export default function Auth({ navigation }) {
     loadSavedData();
   }, []);
 
-  // SAVE OR CLEAR LOGIN DATA
-
   const handleRememberMe = async (value) => {
     setRememberMe(value);
 
@@ -53,8 +51,7 @@ export default function Auth({ navigation }) {
     }
   };
 
-  // LOGIN USER (Fixed to send 'currentid')
-
+  // LOGIN USER (with real-time presence setup)
   const handleLogin = async () => {
     if (!email || !pwd) {
       Alert.alert("Missing info", "Please enter email and password.");
@@ -63,32 +60,38 @@ export default function Auth({ navigation }) {
 
     try {
       const userCredential = await auth.signInWithEmailAndPassword(email.trim(), pwd);
-      
-      // Save login only if rememberMe = true
+      const user = userCredential.user;
+      const uid = user.uid;
 
+      // Save login only if rememberMe = true
       if (rememberMe) {
         await AsyncStorage.setItem("EMAIL", email.trim());
         await AsyncStorage.setItem("PWD", pwd);
       }
 
-      // Get the UID and pass it to Home screen
+      // --- PRESENCE: mark this user online in Acounts/{uid} and ensure onDisconnect sets them offline
+      const userRef = database.ref("Acounts").child(uid);
 
-      const user = userCredential.user;
-      navigation.replace("Home", { currentid: user.uid });
+      // set online true now
+      await userRef.update({ online: true });
+
+      // If connection drops or app closes, onDisconnect will set online=false and lastSeen timestamp
+      userRef.child("online").onDisconnect().set(false);
+      userRef.child("lastSeen").onDisconnect().set(Date.now());
+
+      // Redirect to Home and pass currentid
+      navigation.replace("Home", { currentid: uid });
 
     } catch (error) {
       Alert.alert("Login Error", error.message);
     }
   };
 
-  // OPEN FORGOT PASSWORD MODAL
-
+  // FORGOT PASSWORD HELPERS
   const openForgotModal = () => {
-    setResetEmail(email); // Pre-fill with the email currently in the login box
+    setResetEmail(email);
     setModalVisible(true);
   };
-
-  // SEND RESET EMAIL (Inside Modal)
 
   const handleSendReset = async () => {
     if (!resetEmail) {
@@ -99,20 +102,14 @@ export default function Auth({ navigation }) {
     try {
       await auth.sendPasswordResetEmail(resetEmail.trim());
       setModalVisible(false);
-      Alert.alert(
-        "Email sent",
-        "Please check your inbox to reset your password."
-      );
+      Alert.alert("Email sent", "Please check your inbox to reset your password.");
     } catch (error) {
       Alert.alert("Error", error.message);
     }
   };
 
   return (
-    <ImageBackground
-      source={require("../assets/background.jpg")}
-      style={styles.container}
-    >
+    <ImageBackground source={require("../assets/background.jpg")} style={styles.container}>
       <View style={styles.card}>
         <Text style={styles.title}>Welcome Back</Text>
 
@@ -132,8 +129,6 @@ export default function Auth({ navigation }) {
           value={pwd}
           onChangeText={setPwd}
         />
-
-        {/* Remember me toggle */}
 
         <View style={styles.rememberRow}>
           <Text style={styles.rememberText}>Remember me</Text>
@@ -157,27 +152,14 @@ export default function Auth({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      {/* FORGOT PASSWORD MODAL                       */}
-
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
+      {/* Forgot Password Modal */}
+      <Modal animationType="slide" transparent={true} visible={modalVisible} onRequestClose={() => setModalVisible(false)}>
         <View style={styles.modalContainer}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Reset Password</Text>
             <Text style={styles.modalDesc}>Enter your email to receive a reset link.</Text>
 
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Enter your email"
-              value={resetEmail}
-              onChangeText={setResetEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-            />
+            <TextInput style={styles.modalInput} placeholder="Enter your email" value={resetEmail} onChangeText={setResetEmail} autoCapitalize="none" keyboardType="email-address" />
 
             <View style={styles.modalBtnRow}>
               <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.cancelBtn}>
@@ -191,13 +173,11 @@ export default function Auth({ navigation }) {
           </View>
         </View>
       </Modal>
-
     </ImageBackground>
   );
 }
 
-// STYLES
-
+// STYLES (same as yours)
 const styles = StyleSheet.create({
   container: { flex: 1, alignItems: "center", justifyContent: "center" },
 
@@ -265,8 +245,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     textDecorationLine: "underline",
   },
-
-  // MODAL STYLES
 
   modalContainer: {
     flex: 1,
