@@ -1,21 +1,12 @@
 import { StatusBar } from 'expo-status-bar';
-import {
-  Button,
-  ImageBackground,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-  TouchableOpacity,
-  Image,
-  Alert
-} from 'react-native';
+import { Button, ImageBackground, StyleSheet,
+  Text,TextInput,View, TouchableOpacity, Image, Alert} from 'react-native';
 import React, { useState } from 'react';
 import firebase from '../config';
 import * as ImagePicker from "expo-image-picker";
 
 const database = firebase.database();
-const ref_all_accounts = database.ref("Acounts"); // <--- correct path
+const ref_all_accounts = database.ref("Acounts"); 
 
 export default function CreateUser({ navigation }) {
   const auth = firebase.auth();
@@ -28,7 +19,7 @@ export default function CreateUser({ navigation }) {
   const [confPwd, setConfPwd] = useState("");
   const [profilePic, setProfilePic] = useState(null);
 
-  // PICK IMAGE (Directly opens gallery)
+  // Select Profile Picture
   async function pickImage() {
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -40,7 +31,7 @@ export default function CreateUser({ navigation }) {
     }
   }
 
-  // REGISTER USER
+  //  Handle Registration
   const handleRegister = async () => {
     if (!fullName || !email || !pwd || !pseudo) {
       Alert.alert("Missing info", "Please fill all required fields.");
@@ -52,6 +43,7 @@ export default function CreateUser({ navigation }) {
     }
 
     try {
+      //Create User in Firebase Authentication
       await auth.createUserWithEmailAndPassword(email.trim(), pwd);
       const uid = auth.currentUser.uid;
 

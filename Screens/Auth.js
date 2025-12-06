@@ -6,8 +6,7 @@ import {
   StyleSheet,
   ImageBackground,
   Alert,
-  Switch,
-  Modal
+  Modal,
 } from "react-native";
 import React, { useState, useEffect } from "react";
 import firebase from "../config";
@@ -17,41 +16,35 @@ export default function Auth({ navigation }) {
   const auth = firebase.auth();
   const database = firebase.database();
 
-  // Login States
   const [email, setEmail] = useState("");
   const [pwd, setPwd] = useState("");
-  const [rememberMe, setRememberMe] = useState(false);
-
-  // Forgot Password Modal States
   const [modalVisible, setModalVisible] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
 
-  // LOAD SAVED LOGIN INFO
-  useEffect(() => {
-    const loadSavedData = async () => {
-      const savedEmail = await AsyncStorage.getItem("EMAIL");
-      const savedPwd = await AsyncStorage.getItem("PWD");
+  // Auto-login using stored UID
+useEffect(() => {
+    const checkStoredUID = async () => {
+      const savedUID = await AsyncStorage.getItem("CURRENT_UID");
 
-      if (savedEmail && savedPwd) {
-        setEmail(savedEmail);
-        setPwd(savedPwd);
-        setRememberMe(true);
+      if (savedUID) {
+      // Set Online Status for Auto-Login ---
+        const userRef = database.ref("Acounts").child(savedUID);
+      
+        await userRef.update({ online: true });
+        
+        // Ensure it goes back to false if app closes/crashes or internet is lost
+        userRef.child("online").onDisconnect().set(false);
+        userRef.child("lastSeen").onDisconnect().set(Date.now());
+
+
+        navigation.replace("Home", { currentid: savedUID });
       }
     };
 
-    loadSavedData();
+    checkStoredUID();
   }, []);
 
-  const handleRememberMe = async (value) => {
-    setRememberMe(value);
-
-    if (!value) {
-      await AsyncStorage.removeItem("EMAIL");
-      await AsyncStorage.removeItem("PWD");
-    }
-  };
-
-  // LOGIN USER (with real-time presence setup)
+  // Login function
   const handleLogin = async () => {
     if (!email || !pwd) {
       Alert.alert("Missing info", "Please enter email and password.");
@@ -59,35 +52,32 @@ export default function Auth({ navigation }) {
     }
 
     try {
-      const userCredential = await auth.signInWithEmailAndPassword(email.trim(), pwd);
+      const userCredential = await auth.signInWithEmailAndPassword(
+        email.trim(),
+        pwd
+      );
+
       const user = userCredential.user;
       const uid = user.uid;
 
-      // Save login only if rememberMe = true
-      if (rememberMe) {
-        await AsyncStorage.setItem("EMAIL", email.trim());
-        await AsyncStorage.setItem("PWD", pwd);
-      }
+      // Save UID for auto login
+      await AsyncStorage.setItem("CURRENT_UID", uid);
 
-      // --- PRESENCE: mark this user online in Acounts/{uid} and ensure onDisconnect sets them offline
+      // Mark user online
       const userRef = database.ref("Acounts").child(uid);
 
-      // set online true now
       await userRef.update({ online: true });
 
-      // If connection drops or app closes, onDisconnect will set online=false and lastSeen timestamp
       userRef.child("online").onDisconnect().set(false);
       userRef.child("lastSeen").onDisconnect().set(Date.now());
 
-      // Redirect to Home and pass currentid
       navigation.replace("Home", { currentid: uid });
-
     } catch (error) {
       Alert.alert("Login Error", error.message);
     }
   };
 
-  // FORGOT PASSWORD HELPERS
+  // Forgot password modal
   const openForgotModal = () => {
     setResetEmail(email);
     setModalVisible(true);
@@ -102,14 +92,18 @@ export default function Auth({ navigation }) {
     try {
       await auth.sendPasswordResetEmail(resetEmail.trim());
       setModalVisible(false);
-      Alert.alert("Email sent", "Please check your inbox to reset your password.");
+
+      Alert.alert("Email sent", "Check your inbox to reset password.");
     } catch (error) {
       Alert.alert("Error", error.message);
     }
   };
 
   return (
-    <ImageBackground source={require("../assets/background.jpg")} style={styles.container}>
+    <ImageBackground
+      source={require("../assets/background.jpg")}
+      style={styles.container}
+    >
       <View style={styles.card}>
         <Text style={styles.title}>Welcome Back</Text>
 
@@ -130,15 +124,6 @@ export default function Auth({ navigation }) {
           onChangeText={setPwd}
         />
 
-        <View style={styles.rememberRow}>
-          <Text style={styles.rememberText}>Remember me</Text>
-          <Switch
-            value={rememberMe}
-            onValueChange={handleRememberMe}
-            thumbColor={rememberMe ? "#3b4db8" : "#aaa"}
-          />
-        </View>
-
         <TouchableOpacity style={styles.loginBtn} onPress={handleLogin}>
           <Text style={styles.loginText}>Login</Text>
         </TouchableOpacity>
@@ -152,17 +137,34 @@ export default function Auth({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      {/* Forgot Password Modal */}
-      <Modal animationType="slide" transparent={true} visible={modalVisible} onRequestClose={() => setModalVisible(false)}>
+      {/* Reset password modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
         <View style={styles.modalContainer}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Reset Password</Text>
-            <Text style={styles.modalDesc}>Enter your email to receive a reset link.</Text>
+            <Text style={styles.modalDesc}>
+              Enter your email to receive reset link.
+            </Text>
 
-            <TextInput style={styles.modalInput} placeholder="Enter your email" value={resetEmail} onChangeText={setResetEmail} autoCapitalize="none" keyboardType="email-address" />
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Enter your email"
+              value={resetEmail}
+              onChangeText={setResetEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+            />
 
             <View style={styles.modalBtnRow}>
-              <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.cancelBtn}>
+              <TouchableOpacity
+                onPress={() => setModalVisible(false)}
+                style={styles.cancelBtn}
+              >
                 <Text style={styles.cancelText}>Cancel</Text>
               </TouchableOpacity>
 
@@ -177,9 +179,12 @@ export default function Auth({ navigation }) {
   );
 }
 
-// STYLES (same as yours)
 const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: "center", justifyContent: "center" },
+  container: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 
   card: {
     width: "90%",
@@ -219,19 +224,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 
-  rememberRow: {
-    width: "90%",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 10,
-  },
-
-  rememberText: {
-    fontSize: 15,
-    color: "#444",
-  },
-
   forgetPwd: {
     marginTop: 15,
     color: "#d9534f",
@@ -252,25 +244,27 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "rgba(0,0,0,0.5)",
   },
+
   modalCard: {
     width: "85%",
     backgroundColor: "white",
     padding: 20,
     borderRadius: 15,
     alignItems: "center",
-    elevation: 5,
   },
+
   modalTitle: {
     fontSize: 20,
     fontWeight: "bold",
     marginBottom: 10,
   },
+
   modalDesc: {
     fontSize: 14,
     color: "#666",
     marginBottom: 15,
-    textAlign: "center"
   },
+
   modalInput: {
     width: "100%",
     backgroundColor: "#f0f0f0",
@@ -278,23 +272,27 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: "#ddd"
+    borderColor: "#ddd",
   },
+
   modalBtnRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     width: "100%",
   },
+
   cancelBtn: {
     flex: 1,
     padding: 10,
     marginRight: 10,
     alignItems: "center",
   },
+
   cancelText: {
     color: "gray",
     fontWeight: "bold",
   },
+
   sendBtn: {
     flex: 1,
     backgroundColor: "#3b4db8",
@@ -302,8 +300,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: "center",
   },
+
   sendText: {
     color: "white",
     fontWeight: "bold",
-  }
+  },
 });

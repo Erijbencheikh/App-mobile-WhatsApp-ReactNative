@@ -1,16 +1,5 @@
-import {
-  FlatList,
-  ImageBackground,
-  Image,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-  TouchableOpacity,
-  StatusBar,
-  Modal,
-  Alert
-} from "react-native";
+import {FlatList, ImageBackground, Image,StyleSheet,
+  Text,TextInput,View,TouchableOpacity,StatusBar, Modal,Alert} from "react-native";
 import firebase from "../../config";
 import React, { useEffect, useState, useLayoutEffect } from "react";
 import { Ionicons } from "@expo/vector-icons";
@@ -23,14 +12,16 @@ export default function List({ navigation, route }) {
 
   const [data, setData] = useState([]); // All users
   const [myContacts, setMyContacts] = useState([]); // IDs of added contacts
+
   const [searchText, setSearchText] = useState("");
   const [modalVisible, setModalVisible] = useState(false);
   const [numberInput, setNumberInput] = useState("");
   const [searchResult, setSearchResult] = useState(null);
 
+  // Reference to current user's contacts
   const ref_my_contacts = database.ref("MyContacts").child(currentid);
 
-  // Header setup
+  // Set up header options
   useLayoutEffect(() => {
     navigation.setOptions({
       title: "Contacts",
@@ -44,17 +35,17 @@ export default function List({ navigation, route }) {
     });
   }, [navigation]);
 
-  // Fetch all users (include yourself for self-chat)
+  // Fetch all users 
   useEffect(() => {
     ref_all_accounts.on("value", (snapshot) => {
       const d = [];
       snapshot.forEach((child) => {
-        const user = child.val();
+        const user = child.val(); //Convert object to array
         d.push(user); // include current user as well
       });
       setData(d);
     });
-    return () => ref_all_accounts.off();
+    return () => ref_all_accounts.off(); // Cleanup listener
   }, []);
 
   // Fetch my added contacts
@@ -62,7 +53,7 @@ export default function List({ navigation, route }) {
     ref_my_contacts.on("value", (snapshot) => {
       const contactIds = [];
       snapshot.forEach((child) => {
-        contactIds.push(child.key);
+        contactIds.push(child.key); // Collect contact IDs
       });
       setMyContacts(contactIds);
     });
@@ -83,7 +74,7 @@ export default function List({ navigation, route }) {
   // Add new contact by number
   const addContactByNumber = () => {
     if (!searchResult) return;
-
+    // Add to my contacts FriendID = true
     ref_my_contacts.child(searchResult.Id).set(true)
       .then(() => {
         Alert.alert("Success", "Contact added!");
@@ -104,7 +95,7 @@ export default function List({ navigation, route }) {
     }
   };
 
-  // Render item
+  // Render item (Individual Contact Card )
   const renderItem = ({ item }) => {
     const userImage = item.ProfileImage ? { uri: item.ProfileImage } : require("../../assets/profil.png");
     return (
